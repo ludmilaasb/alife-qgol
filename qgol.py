@@ -11,9 +11,10 @@ from typing import Dict, Tuple, List
 
 import numpy as np
 from dwave.cloud import Client
+import dimod
 
 
-def solveWithDwave(qubo, num_reads=100, solver_name="DW_2000Q_VFYC_6"):
+def solveWithDwave(qubo, num_reads=100, solver_name="DW_2000Q_6"):
     """
 
     :param qubo: The qubo to be solved
@@ -23,12 +24,14 @@ def solveWithDwave(qubo, num_reads=100, solver_name="DW_2000Q_VFYC_6"):
     """
     with Client.from_config() as client:
         solver = client.get_solver(solver_name)
+        model = dimod.BinaryQuadraticModel.from_qubo(qubo, offset=0.0)
+
         computation = solver.sample_qubo(qubo, num_reads=num_reads)
         result = computation.result()
         return result
 
 
-def getHardwareAdjacency(solver_name="DW_2000Q_VFYC_6"):
+def getHardwareAdjacency(solver_name="DW_2000Q_6"):
     """
 
     :param solver_name: The D'Wave Annealer to be used
@@ -101,7 +104,7 @@ def intializeField(width: int, height: int, one_coverage=0.):
     return field
 
 
-def makeStepOne(field, qubo_value, field_to_block: Dict[Tuple[int, int], List[int]], solver_name="DW_2000Q_VFYC_6",
+def makeStepOne(field, qubo_value, field_to_block: Dict[Tuple[int, int], List[int]], solver_name="DW_2000Q_6",
                 prob_of_fixing=1.,
                 model_overpopulation=False, overpopulation_amnt=3):
     """
@@ -120,7 +123,7 @@ def makeStepOne(field, qubo_value, field_to_block: Dict[Tuple[int, int], List[in
     :return: the new quantum game of life field after the growth step
     """
     nodes, edges = getHardwareAdjacency(solver_name)
-    qubo = {(i, j): 0.0 for i in range(len(nodes)) for j in range(len(nodes))}
+    qubo = {(i, j): 0.0 for i in nodes for j in nodes}
     one_qubits = []
     # connect qubits in the Same Block
     for i in range(field.shape[0]):
@@ -166,6 +169,7 @@ def makeStepOne(field, qubo_value, field_to_block: Dict[Tuple[int, int], List[in
                                         used_qubits.add(q_2)
                                         if (q_1, q_2) in edges:
                                             if not model_overpopulation:
+                                                pass
                                                 qubo[(q_1, q_2)] += qubo_value
                                             else:
                                                 if amnt_used_qubits > overpopulation_amnt:
@@ -175,7 +179,7 @@ def makeStepOne(field, qubo_value, field_to_block: Dict[Tuple[int, int], List[in
                                                     qubo[(q_1, q_2)] += qubo_value
                                                     amnt_used_qubits += 1
     # Fix not connected zeros in place
-    for i in range(len(nodes)):
+    for i in nodes:
         if i not in used_qubits:
             qubo[(i, i)] += 100.0
     new_field = np.zeros(field.shape)
@@ -205,7 +209,7 @@ def makeStepOne(field, qubo_value, field_to_block: Dict[Tuple[int, int], List[in
 
 
 def makeStepZero(field, qubo_value, field_to_block: Dict[Tuple[int, int], List[int]], prob_of_fixing=1.,
-                 solver_name="DW_2000Q_VFYC_6", model_overpopulation=False, overpopulation_amnt=3):
+                 solver_name="DW_2000Q_6", model_overpopulation=False, overpopulation_amnt=3):
     """
         In this Method the zeros are fixed with Probability prob_of_fixing
         and the rest is free to mutate using the Qubo Value,
@@ -259,7 +263,7 @@ def visualizeField(field, iteration, game_name, directory, many_games=False):
 
 
 def playQGOL(max_iterations, qubo_value1, qubo_value0, game_name, directory,
-             prob_of_fixing1=1., prob_of_fixing0=1., solver_name="DW_2000Q_VFYC_6", overpopulation_amnt=3,
+             prob_of_fixing1=1., prob_of_fixing0=1., solver_name="DW_2000Q_6", overpopulation_amnt=3,
              model_overpopulation=True):
     """
 
